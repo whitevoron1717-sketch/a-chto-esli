@@ -1,0 +1,202 @@
+cd ~/bible-android
+
+mkdir -p app/src/main/java/com/bible/app
+mkdir -p app/src/main/res/values
+
+cat > settings.gradle.kts <<'EOF'
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "BIBLE"
+include(":app")
+EOF
+
+cat > build.gradle.kts <<'EOF'
+plugins {
+    id("com.android.application") version "8.7.3" apply false
+    id("org.jetbrains.kotlin.android") version "2.0.21" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21" apply false
+}
+EOF
+
+cat > gradle.properties <<'EOF'
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+android.useAndroidX=true
+kotlin.code.style=official
+EOF
+
+cat > app/build.gradle.kts <<'EOF'
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
+}
+
+android {
+    namespace = "com.bible.app"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "com.bible.app"
+        minSdk = 23
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0"
+    }
+}
+
+dependencies {
+    implementation(platform("androidx.compose:compose-bom:2024.12.01"))
+    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.navigation:navigation-compose:2.8.5")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+}
+EOF
+
+cat > app/src/main/AndroidManifest.xml <<'EOF'
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:label="BIBLE"
+        android:allowBackup="true"
+        android:supportsRtl="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+EOF
+
+cat > app/src/main/java/com/bible/app/MainActivity.kt <<'EOF'
+package com.bible.app
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent { BibleApp() }
+    }
+}
+
+@Composable
+fun BibleApp() {
+    val books = listOf(
+        "Бытие", "Исход", "Левит", "Числа", "Второзаконие",
+        "Иисус Навин", "Судьи", "Руфь", "1 Царств", "2 Царств",
+        "Псалтирь", "Притчи", "Екклесиаст", "Исаия", "Иеремия",
+        "Евангелие от Матфея", "Евангелие от Марка",
+        "Евангелие от Луки", "Евангелие от Иоанна", "Деяния",
+        "Римлянам", "Откровение"
+    )
+    var selectedBook by remember { mutableStateOf("Бытие") }
+    var selectedTranslation by remember { mutableStateOf("Синодальный") }
+    var search by remember { mutableStateOf("") }
+
+    MaterialTheme {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color(0xFFF8F5EF)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text("📖 BIBLE", fontSize = 30.sp, color = Color(0xFF70512E))
+                Text("Читай. Изучай. Сохраняй.", color = Color.Gray)
+                Spacer(Modifier.height(24.dp))
+
+                Text("Перевод Библии", fontSize = 17.sp)
+                Spacer(Modifier.height(8.dp))
+
+                var expanded by remember { mutableStateOf(false) }
+                Box {
+                    OutlinedButton(onClick = { expanded = true }) {
+                        Text(selectedTranslation)
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        listOf("Синодальный", "Современный русский").forEach {
+                            DropdownMenuItem(
+                                text = { Text(it) },
+                                onClick = {
+                                    selectedTranslation = it
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+                Text("Книги Библии", fontSize = 23.sp)
+                Spacer(Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = search,
+                    onValueChange = { search = it },
+                    label = { Text("Найти книгу") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                LazyColumn {
+                    items(books.filter { it.contains(search, true) }) { book ->
+                        TextButton(
+                            onClick = { selectedBook = book },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                book,
+                                color = if (selectedBook == book)
+                                    Color(0xFF805A2D) else Color.DarkGray,
+                                fontSize = 17.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (selectedBook == book) Text("✓")
+                        }
+                        HorizontalDivider(color = Color(0xFFE8E0D5))
+                    }
+                }
+            }
+        }
+    }
+}
+EOF
+
+export ANDROID_HOME="$HOME/android-sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+
+gradle wrapper --gradle-version 8.9
+./gradlew assembleDebug
